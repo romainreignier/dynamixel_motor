@@ -14,6 +14,7 @@
   <author>Antons Rebguns</author>
 
   <buildtool_depend>catkin</buildtool_depend>
+  <run_depend>dynamixel_msgs</run_depend>
   <run_depend>dynamixel_controllers</run_depend>
 
   <export>

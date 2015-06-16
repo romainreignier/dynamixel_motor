@@ -3,7 +3,7 @@ project(dynamixel_tutorials)
 find_package(catkin REQUIRED)
 
 catkin_package(
-    CATKIN_DEPENDS dynamixel_controllers
+    CATKIN_DEPENDS dynamixel_controllers dynamixel_msgs
 )
 
 install(DIRECTORY launch
