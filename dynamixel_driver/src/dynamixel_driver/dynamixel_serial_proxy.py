@@ -221,7 +221,8 @@ class SerialProxy():
             motor_states = []
             for motor_id in self.motors:
                 try:
-                    state = self.dxl_io.get_feedback(motor_id)
+                    #state = self.dxl_io.get_feedback(motor_id)
+                    state = self.dxl_io.get_feedback_minimal(motor_id)
                     if state:
                         motor_states.append(MotorState(**state))
                         if dynamixel_io.exception: raise dynamixel_io.exception
