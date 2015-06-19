@@ -69,6 +69,7 @@ class DynamixelIO(object):
             self.ser.baudrate = baudrate
             self.port_name = port
             self.readback_echo = readback_echo
+            self.return_delay = 0.0006
         except SerialOpenError:
            raise SerialOpenError(port, baudrate)
 
@@ -135,7 +136,7 @@ class DynamixelIO(object):
 
             # wait for response packet from the motor
             timestamp = time.time()
-            time.sleep(0.0013)#0.00235)
+            time.sleep(self.return_delay)
 
             # read response
             data = self.__read_response(servo_id)
@@ -174,7 +175,7 @@ class DynamixelIO(object):
 
             # wait for response packet from the motor
             timestamp = time.time()
-            time.sleep(0.0013)
+            time.sleep(self.return_delay)
 
             # read response
             data = self.__read_response(servo_id)
@@ -947,6 +948,40 @@ class DynamixelIO(object):
             voltage = response[17] / 10.0
             temperature = response[18]
             moving = response[21]
+            timestamp = response[-1]
+
+            # return the data in a dictionary
+            return { 'timestamp': timestamp,
+                     'id': servo_id,
+                     'goal': goal,
+                     'position': position,
+                     'error': error,
+                     'speed': speed,
+                     'load': load,
+                     'voltage': voltage,
+                     'temperature': temperature,
+                     'moving': bool(moving) }
+
+    def get_feedback_minimal(self, servo_id):
+        """
+        Returns only the id and position values from the specified servo.
+        """
+        # read in 2 consecutive bytes starting with low value for present position
+        response = self.read(servo_id, DXL_PRESENT_POSITION_L, 2)
+
+        if response:
+            self.exception_on_error(response[4], servo_id, 'fetching full servo status')
+        if len(response) == 9:
+            # extract data values from the raw data
+            goal = 0 
+            position = response[5] + (response[6] << 8)
+            error = 0
+            speed = 0 
+            if speed > 1023: speed = 1023 - speed
+            load = 0
+            voltage = 0
+            temperature = 0
+            moving = 0
             timestamp = response[-1]
 
             # return the data in a dictionary
