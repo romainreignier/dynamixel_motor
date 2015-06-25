@@ -144,7 +144,7 @@ class DynamixelIO(object):
 
         return data
 
-	def sync_read(self, servo_ids, address, size):
+    def sync_read(self, servo_ids, address, size):
         """ Use the USB2AX special instruction to read multiple servos registers
         at the same time.
         Read "size" bytes of data from each servo of the "servo_ids" list starting
@@ -1030,7 +1030,7 @@ class DynamixelIO(object):
                      'temperature': temperature,
                      'moving': bool(moving) }
 
-	def get_feedback_minimal_sync(self, servo_ids):
+    def get_feedback_minimal_sync(self, servo_ids):
         """
         Returns only the id, position, speed and load values from the specified
 		servos in the "servo_ids" list.

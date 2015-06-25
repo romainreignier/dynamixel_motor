@@ -258,7 +258,7 @@ class SerialProxy():
                 
             rate.sleep()
 
-	def __update_motor_states_sync(self):
+    def __update_motor_states_sync(self):
         num_events = 50
         rates = deque([float(self.update_rate)]*num_events, maxlen=num_events)
         last_time = rospy.Time.now()
