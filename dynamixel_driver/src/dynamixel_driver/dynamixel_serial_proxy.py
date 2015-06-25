@@ -104,7 +104,7 @@ class SerialProxy():
             
         self.running = True
         #if self.update_rate > 0: Thread(target=self.__update_motor_states).start()
-		if self.update_rate > 0: Thread(target=self.__update_motor_states_sync).start()
+	if self.update_rate > 0: Thread(target=self.__update_motor_states_sync).start()
         if self.diagnostics_rate > 0: Thread(target=self.__publish_diagnostic_information).start()
 
     def disconnect(self):
