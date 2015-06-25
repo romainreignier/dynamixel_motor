@@ -91,8 +91,8 @@ class SerialProxy():
         self.current_state = MotorStateList()
         self.num_ping_retries = 5
         
-        self.motor_states_pub = rospy.Publisher('motor_states/%s' % self.port_namespace, MotorStateList, queue_size=1)
-        self.diagnostics_pub = rospy.Publisher('/diagnostics', DiagnosticArray, queue_size=1)
+        self.motor_states_pub = rospy.Publisher('motor_states/%s' % self.port_namespace, MotorStateList)
+        self.diagnostics_pub = rospy.Publisher('/diagnostics', DiagnosticArray)
 
     def connect(self):
         try:
