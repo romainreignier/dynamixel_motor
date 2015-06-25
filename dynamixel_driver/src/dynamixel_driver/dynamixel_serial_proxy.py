@@ -103,7 +103,8 @@ class SerialProxy():
             sys.exit(1)
             
         self.running = True
-        if self.update_rate > 0: Thread(target=self.__update_motor_states).start()
+        #if self.update_rate > 0: Thread(target=self.__update_motor_states).start()
+		if self.update_rate > 0: Thread(target=self.__update_motor_states_sync).start()
         if self.diagnostics_rate > 0: Thread(target=self.__publish_diagnostic_information).start()
 
     def disconnect(self):
@@ -241,6 +242,58 @@ class SerialProxy():
                     if ose.errno != errno.EAGAIN:
                         rospy.logfatal(errno.errorcode[ose.errno])
                         rospy.signal_shutdown(errno.errorcode[ose.errno])
+                        
+            if motor_states:
+                msl = MotorStateList()
+                msl.motor_states = motor_states
+                self.motor_states_pub.publish(msl)
+                
+                self.current_state = msl
+                
+                # calculate actual update rate
+                current_time = rospy.Time.now()
+                rates.append(1.0 / (current_time - last_time).to_sec())
+                self.actual_rate = round(sum(rates)/num_events, 2)
+                last_time = current_time
+                
+            rate.sleep()
+
+	def __update_motor_states_sync(self):
+        num_events = 50
+        rates = deque([float(self.update_rate)]*num_events, maxlen=num_events)
+        last_time = rospy.Time.now()
+        
+        rate = rospy.Rate(self.update_rate)
+        while not rospy.is_shutdown() and self.running:
+            # get current state of all motors and publish to motor_states topic
+            motor_states = []
+            try:
+                motor_response = self.dxl_io.get_feedback_minimal_sync(self.motors)
+                if motor_response:
+					# Read the list and create dictionnaries
+                    for i in range(0, len(self.motors) * 4, 4):
+                        state = { 'timestamp': motor_response[-1],
+                                  'id': motor_response[i],
+                                  'position': motor_response[i+1],
+                                  'speed': motor_response[i+2],
+                                  'load': motor_response[i+3] }
+                        motor_states.append(MotorState(**state))
+                    if dynamixel_io.exception: raise dynamixel_io.exception
+            except dynamixel_io.FatalErrorCodeError, fece:
+                rospy.logerr(fece)
+            except dynamixel_io.NonfatalErrorCodeError, nfece:
+                self.error_counts['non_fatal'] += 1
+                rospy.logdebug(nfece)
+            except dynamixel_io.ChecksumError, cse:
+                self.error_counts['checksum'] += 1
+                rospy.logdebug(cse)
+            except dynamixel_io.DroppedPacketError, dpe:
+                self.error_counts['dropped'] += 1
+                rospy.logdebug(dpe.message)
+            except OSError, ose:
+                if ose.errno != errno.EAGAIN:
+                    rospy.logfatal(errno.errorcode[ose.errno])
+                    rospy.signal_shutdown(errno.errorcode[ose.errno])
                         
             if motor_states:
                 msl = MotorStateList()

@@ -144,6 +144,40 @@ class DynamixelIO(object):
 
         return data
 
+	def sync_read(self, servo_ids, address, size):
+        """ Use the USB2AX special instruction to read multiple servos registers
+        at the same time.
+        Read "size" bytes of data from each servo of the "servo_ids" list starting
+        at the register with "address". "address" is an integer between 0 and 57.
+        It is recommended to use the constants in module dynamixel_const for readability.
+
+        """
+        # Number of bytes following standard header (0xFF, 0xFF, id, length)
+        length = 4 + len(servo_ids)
+
+        # OxFD is the id for the USB2AX
+        checksum = 255 - ((0xFD + length + DXL_SYNC_READ + address + size + sum(servo_ids)) % 256)
+
+        # packet: FF  FF  ID LENGTH INSTRUCTION PARAM_1 ... CHECKSUM
+        packet = [0xFF, 0xFF, 0xFD, length, DXL_SYNC_READ, address, size]
+        packet.extend(servo_ids)
+        packet.append(checksum)
+
+        packetStr = array('B', packet).tostring() # packetStr = ''.join([chr(byte) for byte in packet])
+
+        with self.serial_mutex:
+            self.__write_serial(packetStr)
+
+            # wait for response packet from the motor
+            timestamp = time.time()
+            time.sleep(self.return_delay)
+
+            # read response
+            data = self.__read_response(0xFD)
+            data.append(timestamp)
+
+        return data
+
     def write(self, servo_id, address, data):
         """ Write the values from the "data" list to the servo with "servo_id"
         starting with data[0] at "address", continuing through data[n-1] at
@@ -995,6 +1029,40 @@ class DynamixelIO(object):
                      'voltage': voltage,
                      'temperature': temperature,
                      'moving': bool(moving) }
+
+	def get_feedback_minimal_sync(self, servo_ids):
+        """
+        Returns only the id, position, speed and load values from the specified
+		servos in the "servo_ids" list.
+		Warming: 
+        """
+        L = 6 # number of registers to read
+        N = len(servo_ids) # number of servos
+        # read in L consecutive bytes starting with low value for present position
+        response = self.sync_read(servo_ids, DXL_PRESENT_POSITION_L, L)
+
+        if response:
+            self.exception_on_error(response[4], 0xFD, 'fetching full servo status')
+        if len(response) == (6 + L * N + 1):
+            states = []
+            i = 5 # first byte of data in the response
+            for servo_id in servo_ids:
+                states.append(servo_id) # servo id
+                states.append(response[i] + (response[i+1] << 8)) # present position
+                speed = response[i+2] + (response[i+3] << 8)
+                if speed > 1023: speed = 1023 - speed
+                states.append(speed) # speed
+                load_raw = response[i+4] + (response[i+5] << 8)
+                load_direction = 1 if self.test_bit(load_raw, 10) else 0
+                load = (load_raw & int('1111111111', 2)) / 1024.0
+                if load_direction == 1: load = -load
+                states.append(load) # load
+                i += 6 # loop every 6 byte in the response message
+            
+            states.append(response[-1]) # add the timestamp at the end
+
+            # return the data in a list
+            return states
 
     def get_led(self, servo_id):
         """
